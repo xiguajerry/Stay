@@ -1,0 +1,175 @@
+buildscript {
+    ext.kotlin_version = '1.6.10'
+    repositories {
+        jcenter()
+        maven { url = 'https://files.minecraftforge.net/maven' }
+        maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:4.+'
+        classpath 'org.spongepowered:mixingradle:0.7-SNAPSHOT'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.6.10"
+    }
+}
+
+apply plugin: 'net.minecraftforge.gradle'
+apply plugin: 'kotlin'
+apply plugin: 'org.spongepowered.mixin'
+
+version project.modVersion
+group project.modGroup
+
+compileJava {
+    sourceCompatibility = targetCompatibility = '1.8'
+    options.encoding = 'UTF-8'
+}
+
+repositories {
+    mavenCentral()
+    //noinspection JCenterRepository
+    jcenter()
+    maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+    maven { url = 'https://impactdevelopment.github.io/maven/' }
+    maven { url = 'http://maven-eclipse.github.io/maven' }
+    maven { url = 'https://jitpack.io' }
+}
+
+minecraft {
+    mappings channel: 'stable', version: '39-1.12'
+
+    accessTransformer = file('src/main/resources/stay_at.cfg')
+
+    runs {
+        client {
+            //noinspection GroovyAssignabilityCheck
+            workingDirectory project.file('run')
+
+            property 'fml.coreMods.load', 'me.alpha432.stay.loader.FMLCoreMod'
+            property 'mixin.env.disableRefMap', 'true'
+
+            property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
+            property 'forge.logging.console.level', 'debug'
+        }
+    }
+}
+
+configurations {
+    jarLibs
+}
+
+dependencies {
+
+    minecraft 'net.minecraftforge:forge:1.12.2-14.23.5.2854'
+
+    jarLibs('org.spongepowered:mixin:0.8-SNAPSHOT') {
+        exclude module: 'commons-io'
+        exclude module: 'gson'
+        exclude module: 'guava'
+        exclude module: 'launchwrapper'
+        exclude module: 'log4j-core'
+    }
+
+    jarLibs('club.minnced:java-discord-rpc:2.0.2')
+
+    annotationProcessor('org.spongepowered:mixin:0.8.2:processor') {
+        exclude module: 'gson'
+    }
+
+    jarLibs('org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.6.10')
+    
+    jarLibs('org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0-native-mt')
+
+    jarLibs('org.reflections:reflections:0.10.2')
+
+    implementation configurations.jarLibs
+}
+
+mixin {
+    defaultObfuscationEnv 'searge'
+    add sourceSets.main, 'mixins.stay.refmap.json'
+}
+
+processResources {
+    inputs.property 'version', project.version
+    inputs.property 'mcversion', project.mcVersion
+
+    exclude '**/rawimagefiles'
+
+    from(sourceSets.main.resources.srcDirs) {
+        include 'mixins.stay.json'
+        include 'mcmod.info'
+        expand 'version': project.version,
+                'mcversion': project.mcVersion,
+                'modVersion': project.modVersion
+    }
+
+    from(sourceSets.main.resources.srcDirs) {
+        exclude 'mcmod.info'
+    }
+
+    rename '(.+_at.cfg)', 'META-INF/$1'
+}
+
+jar {
+    manifest {
+        attributes(
+                'Manifest-Version': 1.0,
+                'tweakClass': 'org.spongepowered.asm.launch.MixinTweaker',
+                'TweakOrder': 0,
+                'FMLCorePluginContainsFMLMod': 'true',
+                'FMLCorePlugin': 'me.alpha432.stay.loader.FMLCoreMod',
+                'Main-Class': 'me.alpha432.stay.loader.JianShao',
+                'ForceLoadAsMod': 'true',
+                'FMLAT': 'stay_at.cfg'
+        )
+    }
+
+    from {
+        configurations.jarLibs.collect {
+            it.isDirectory() ? it : zipTree(it)
+        }
+    }
+}
+
+//task clientJar(type: Jar, dependsOn: jar) {
+//    from(zipTree(jar.archivePath)) {
+//        include "me/alpha432/stay/client/**"
+//        include "me/alpha432/stay/event/**"
+//        include "me/alpha432/stay/features/**"
+//        include "me/alpha432/stay/irc/**"
+//        include "me/alpha432/stay/manager/**"
+//        include "me/alpha432/stay/mixin/**"
+//        include "me/alpha432/stay/util/**"
+//    }
+//    classifier = "client"
+//}
+//
+//task loaderJar(type: Jar, dependsOn: jar) {
+//    from(zipTree(jar.archivePath)) {
+//        exclude "me/alpha432/stay/client/**"
+//        exclude "me/alpha432/stay/event/**"
+//        exclude "me/alpha432/stay/features/**"
+//        exclude "me/alpha432/stay/irc/**"
+//        exclude "me/alpha432/stay/manager/**"
+//        exclude "me/alpha432/stay/mixin/**"
+//        exclude "me/alpha432/stay/util/**"
+//        exclude 'LICENSE.txt'
+//        exclude '**/module-info.class'
+//    }
+//    version = "1.0"
+//    classifier = "loader"
+//    manifest = jar.manifest
+//}
+
+
+//build.dependsOn(clientJar, loaderJar)
+compileKotlin {
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
+}
+compileTestKotlin {
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
+}
